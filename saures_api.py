@@ -12,6 +12,7 @@ class SauresAPI:
         :param password: user password
         """
 
+        self.sid = None #sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
         self.email = email
         self.password = password
         self.api_url = u"https://api.saures.ru/1.0/"
@@ -27,24 +28,23 @@ class SauresAPI:
         url = self.api_url + u"login"
         body = {'email': self.email, 'password': self.password}
         data = requests.post(url, headers=self.headers, data=body)
+        self.sid = data.json()['data']['sid']
         return DotMap(data.json())
 
-    def user_profile(self, sid: str) -> DotMap:
+    def user_profile(self) -> DotMap:
         """Account parameters
 
-        :param sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
         :return: {"data": {}|[], "errors": [], "status": "ok|bad"}
         :rtype: <class 'dotmap.DotMap'>
         """
 
-        url = self.api_url + f"user/profile?sid={sid}"
+        url = self.api_url + f"user/profile?sid={self.sid}"
         data = requests.get(url, headers=self.headers)
         return DotMap(data.json())
 
-    def user_profile_edit(self, sid: str, firstname: str, lastname: str, phone: str) -> DotMap:
+    def user_profile_edit(self, firstname: str, lastname: str, phone: str) -> DotMap:
         """Change account settings
 
-        :param sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
         :param firstname: first name
         :param lastname: surname & patronymic
         :param phone: phone number (+7XXXXXXXXXX|+7 (XXX) XXX-XX-XX)
@@ -53,44 +53,41 @@ class SauresAPI:
         """
 
         url = self.api_url + u"user/profile"
-        body = {'sid': sid, 'email': self.email, 'firstname': firstname,
+        body = {'sid': self.sid, 'email': self.email, 'firstname': firstname,
                 'lastname': lastname, 'phone': phone, 'password': self.password}
         data = requests.post(url, headers=self.headers, data=body)
         return DotMap(data.json())
 
-    def user_objects(self, sid: str) -> DotMap:
+    def user_objects(self) -> DotMap:
         """User objects
 
-        :param sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
         :return: {"data": {}|[], "errors": [], "status": "ok|bad"}
         :rtype: <class 'dotmap.DotMap'>
         """
 
-        url = self.api_url + f"user/objects?sid={sid}"
+        url = self.api_url + f"user/objects?sid={self.sid}"
         data = requests.get(url, headers=self.headers)
         return DotMap(data.json())
 
-    def object_meters(self, sid: str, id: int, date: str = None) -> DotMap:
+    def object_meters(self, id: int, date: str = None) -> DotMap:
         """Object indications
 
-        :param sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
         :param id: object id
         :param date: (optional) datetime for which you want to return the meters data (ISO 8610 - YYYY-MM-DDThh:mm:ss)
         :return: {'data': {'sensors': []}, 'errors': [], 'status': 'ok'}
         :rtype: <class 'dotmap.DotMap'>
         """
 
-        url = self.api_url + f"object/meters?sid={sid}&id={id}"
+        url = self.api_url + f"object/meters?sid={self.sid}&id={id}"
         if date:
             url += f"&date={date}"
 
         data = requests.get(url, headers=self.headers)
         return DotMap(data.json())
 
-    def meter_get(self, sid: str, id: int, start: str, finish: str, group: str, absolute: bool = False) -> DotMap:
+    def meter_get(self, id: int, start: str, finish: str, group: str, absolute: bool = False) -> DotMap:
         """Device indications
 
-        :param sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
         :param id: object id
         :param start: start datetime (ISO 8610 - YYYY-MM-DDThh:mm:ss)
         :param finish: end datetime (ISO 8610 - YYYY-MM-DDThh:mm:ss)
@@ -100,14 +97,14 @@ class SauresAPI:
         :rtype: <class 'dotmap.DotMap'>
         """
 
-        url = self.api_url + f"meter/get?sid={sid}&id={id}&start={start}&" \
+        url = self.api_url + f"meter/get?sid={self.sid}&id={id}&start={start}&" \
                              f"finish={finish}&group={group}&absolute={absolute}"
         data = requests.get(url, headers=self.headers)
         return DotMap(data.json())
 
-    def meter_control(self, sid: str, id: int, command: str) -> DotMap:
+    def meter_control(self, id: int, command: str) -> DotMap:
         """Crane and relay control
-        :param sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
+
         :param id: object id
         :param command: activate / deactivate device (activate|deactivate)
         :return: {"data": {}|[], "errors": [], "status": "ok|bad"}
@@ -115,19 +112,18 @@ class SauresAPI:
         """
 
         url = self.api_url + u"meter/control"
-        body = {'sid': sid, 'id': id, 'command': command}
+        body = {'sid': self.sid, 'id': id, 'command': command}
         data = requests.post(url, headers=self.headers, data=body)
         return DotMap(data.json())
 
-    def meter_types(self, sid: str) -> DotMap:
+    def meter_types(self) -> DotMap:
         """Types of devices in the system
 
-        :param sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
         :return: {"data": {}|[], "errors": [], "status": "ok|bad"}
         :rtype: <class 'dotmap.DotMap'>
         """
 
-        url = self.api_url + f"meter/types?sid={sid}"
+        url = self.api_url + f"meter/types?sid={self.sid}"
         data = requests.get(url, headers=self.headers)
         return DotMap(data.json())
 
@@ -151,12 +147,11 @@ class SauresAPI:
         data = requests.post(url, headers=self.headers, data=body)
         return DotMap(data.json())
 
-    def object_add(self, sid: str, city: str, street: str, building: str, utc: int, number: str = None,
+    def object_add(self, city: str, street: str, building: str, utc: int, number: str = None,
                    type: int = None, install_inn: int = None, management_inn: int = None, personal_account: str = None,
                    account_id: str = None) -> DotMap:
         """Adding an object
 
-        :param sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
         :param city: city
         :param street:  street
         :param building: house number
@@ -175,7 +170,7 @@ class SauresAPI:
         """
 
         url = self.api_url + u"object/add"
-        body = {'sid': sid, 'city': city, 'street': street, 'building': building, 'utc': utc}
+        body = {'sid': self.sid, 'city': city, 'street': street, 'building': building, 'utc': utc}
         optional = {'type': type, 'number': number, 'install_inn': install_inn, 'management_inn': management_inn,
                     'personal_account': personal_account, 'account_id': account_id}
 
@@ -185,25 +180,23 @@ class SauresAPI:
         data = requests.post(url, headers=self.headers, data=body)
         return DotMap(data.json())
 
-    def sensor_add_first_step(self, sid: str, sn: str) -> DotMap:
+    def sensor_add_first_step(self, sn: str) -> DotMap:
         """Adding a controller to an object. The addition takes place in 2 stages:
         Step 1. Request for unbound controller inputs using the GET method
 
-        :param sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
         :param sn: controller serial number
         :return: {"data": {}|[], "errors": [], "status": "ok|bad"}
         :rtype: <class 'dotmap.DotMap'>
         """
 
-        url = self.api_url + f"sensor/add?sid={sid}&sn={sn}"
+        url = self.api_url + f"sensor/add?sid={self.sid}&sn={sn}"
         data = requests.get(url, headers=self.headers)
         return DotMap(data.json())
 
-    def sensor_add_second_step(self, sid: str, sn: str, object_id: int, devices: List[dict]) -> DotMap:
+    def sensor_add_second_step(self, sn: str, object_id: int, devices: List[dict]) -> DotMap:
         """Adding a controller to an object. The addition takes place in 2 stages:
         Step 2. Binding the received inputs using the POST method
 
-        :param sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
         :param sn: controller serial number
         :param object_id: object id
         :param devices: device list [{'entrance_number': 1, 'name': "Hot water meter (HWM)", 'sn': "20-084125"},
@@ -213,7 +206,7 @@ class SauresAPI:
         """
 
         url = self.api_url + u"sensor/add"
-        body = {'sid': sid, 'sn': sn, 'object_id': object_id}
+        body = {'sid': self.sid, 'sn': sn, 'object_id': object_id}
 
         for device in devices:
             device_number = device["entrance_number"]
@@ -226,10 +219,9 @@ class SauresAPI:
         data = requests.post(url, headers=self.headers, data=body)
         return DotMap(data.json())
 
-    def sensor_settings(self, sid: str, sn: str, name: str, check_hours: int = None, new_firmware: str = None) -> DotMap:
+    def sensor_settings(self, sn: str, name: str, check_hours: int = None, new_firmware: str = None) -> DotMap:
         """Editing a controller
 
-        :param sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
         :param sn: controller serial number
         :param name: controller name
         :param check_hours: (optional) (72, default) check period notify if there is no connection for more than
@@ -239,7 +231,7 @@ class SauresAPI:
         """
 
         url = self.api_url + u"sensor/settings"
-        body = {'sid': sid, 'sn': sn, 'name': name}
+        body = {'sid': self.sid, 'sn': sn, 'name': name}
         optional = {'check_hours': check_hours, 'new_firmware': new_firmware}
 
         optional = {k: v for k, v in optional.items() if v is not None}
@@ -248,10 +240,9 @@ class SauresAPI:
         data = requests.post(url, headers=self.headers, data=body)
         return DotMap(data.json())
 
-    def meter_save(self, sid: str, id: int, name: str, sn: str, approve_dt: str, eirc_num: str = None) -> DotMap:
+    def meter_save(self, id: int, name: str, sn: str, approve_dt: str, eirc_num: str = None) -> DotMap:
         """Editing a device
 
-        :param sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
         :param id: device id
         :param name: device name
         :param sn: serial number
@@ -262,7 +253,7 @@ class SauresAPI:
         """
 
         url = self.api_url + u"meter/save"
-        body = {'sid': sid, 'id': id, 'name': name, 'sn': sn, 'approve_dt': approve_dt}
+        body = {'sid': self.sid, 'id': id, 'name': name, 'sn': sn, 'approve_dt': approve_dt}
 
         if eirc_num:
             body["eirc_num"] = eirc_num
@@ -270,10 +261,9 @@ class SauresAPI:
         data = requests.post(url, headers=self.headers, data=body)
         return DotMap(data.json())
 
-    def object_journal(self, sid: str, id: int, page: int, step: int) -> DotMap:
+    def object_journal(self, id: int, page: int, step: int) -> DotMap:
         """Object log
 
-        :param sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
         :param id: object id
         :param page: page number
         :param step: number of records in the response
@@ -281,14 +271,13 @@ class SauresAPI:
         :rtype: <class 'dotmap.DotMap'>
         """
 
-        url = self.api_url + f"object/journal?sid={sid}&id={id}&page={page}&step={step}"
+        url = self.api_url + f"object/journal?sid={self.sid}&id={id}&page={page}&step={step}"
         data = requests.get(url, headers=self.headers)
         return DotMap(data.json())
 
-    def object_payments(self, sid: str, id: int, page: int, step: int) -> DotMap:
+    def object_payments(self, id: int, page: int, step: int) -> DotMap:
         """Payment transactions
 
-        :param sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
         :param id: object id
         :param page: page number
         :param step: number of records in the response
@@ -296,29 +285,27 @@ class SauresAPI:
         :rtype: <class 'dotmap.DotMap'>
         """
 
-        url = self.api_url + f"object/payments?sid={sid}&id={id}&page={page}&step={step}"
+        url = self.api_url + f"object/payments?sid={self.sid}&id={id}&page={page}&step={step}"
         data = requests.get(url, headers=self.headers)
         return DotMap(data.json())
 
-    def object_schedule(self, sid: str, id: int) -> DotMap:
+    def object_schedule(self, id: int) -> DotMap:
         """Schedules
 
-        :param sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
         :param id: object id
         :return: {"data": {}|[], "errors": [], "status": "ok|bad"}
         :rtype: <class 'dotmap.DotMap'>
         """
 
-        url = self.api_url + f"object/schedule?sid={sid}&id={id}"
+        url = self.api_url + f"object/schedule?sid={self.sid}&id={id}"
         data = requests.get(url, headers=self.headers)
         return DotMap(data.json())
 
-    def object_schedule_setup(self, sid: str, type: str, day: int, time: str, personal_account: str,
+    def object_schedule_setup(self, type: str, day: int, time: str, personal_account: str,
                               fraction: bool, receiver: int, resource: int, object_id: int,
                               id: int = None, signature: str = None, delete: int = None) -> DotMap:
         """Schedule setup
 
-        :param sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
         :param type: dispatch type (email|push|sms|telegram|mos_ru|mosobleirc)
         :param day: 0 - every day or 32 - the last day of the month (0...32)
         :param time: time (00:00...23:59)
@@ -338,7 +325,7 @@ class SauresAPI:
         """
 
         url = self.api_url + u"object/schedule"
-        body = {'sid': sid, 'type': type, 'day': day, 'time': time, 'personal_account': personal_account,
+        body = {'sid': self.sid, 'type': type, 'day': day, 'time': time, 'personal_account': personal_account,
                 'fraction': fraction, 'receiver': receiver, 'resource': resource, 'object_id': object_id}
         optional = {'id': id, 'signature': signature, 'delete': delete}
 
@@ -348,24 +335,22 @@ class SauresAPI:
         data = requests.post(url, headers=self.headers, data=body)
         return DotMap(data.json())
 
-    def object_notice(self, sid: str, id: int) -> DotMap:
+    def object_notice(self, id: int) -> DotMap:
         """Notifications
 
-        :param sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
         :param id: object id
         :return: {"data": {}|[], "errors": [], "status": "ok|bad"}
         :rtype: <class 'dotmap.DotMap'>
         """
 
-        url = self.api_url + f"object/notice?sid={sid}&id={id}"
+        url = self.api_url + f"object/notice?sid={self.sid}&id={id}"
         data = requests.get(url, headers=self.headers)
         return DotMap(data.json())
 
-    def object_notice_setup(self, sid: str, type: str, dispatch: str, receiver: str,
+    def object_notice_setup(self, type: str, dispatch: str, receiver: str,
                             id: int = None, object_id: int = None, delete: int = None) -> DotMap:
         """Configuring notifications
 
-        :param sid: session id (ID lifetime 15 minutes otherwise WrongSIDException in errors)
         :param type: type of notification (notification|error|notice+error)
         :param dispatch: dispatch type (email|push|sms|telegram)
         :param receiver: recipient of notification (email|login|phone):
@@ -380,7 +365,7 @@ class SauresAPI:
         """
 
         url = self.api_url + u"object/notice"
-        body = {'sid': sid, 'type': type, 'dispatch': dispatch, 'receiver': receiver}
+        body = {'sid': self.sid, 'type': type, 'dispatch': dispatch, 'receiver': receiver}
         optional = {'id': id, 'object_id': object_id, 'delete': delete}
 
         optional = {k: v for k, v in optional.items() if v is not None}
